@@ -93,33 +93,26 @@ function actionOnPage() {
         search = document.querySelector('.search-wrapper_input'),
         searchBtn = document.querySelector('.search-btn');
 
-    discountCheckbox.addEventListener('click', () => {
-        cards.forEach((elem) => {
-            if(discountCheckbox.checked) {
-                if(!elem.querySelector('.card-sale')) {
-                    elem.parentNode.style.display = 'none';
-                } 
+    discountCheckbox.addEventListener('click', filter);
+
+    min.addEventListener('change', filter);
+    max.addEventListener('change', filter);
+
+    function filter() {
+        cards.forEach((card) => {
+            const cardPrice = card.querySelector('.card-price');
+            const price = parseFloat(cardPrice.textContent);
+            const discount = card.querySelector('.card-sale');
+
+            if((min.value && price < min.value) || (max.value && price > max.value)) {
+                card.parentNode.style.display = "none";
+            } else if (discountCheckbox.checked && !discount) {
+                card.parentNode.style.display = "none";
             } else {
-                elem.parentNode.style.display = 'block';
+                card.parentNode.style.display = "";
             }
         })
-    });
-
-    function filterPrice() {
-        cards.forEach((elem) => {
-            const cardPrice = elem.querySelector('.card-price');
-            const price = parseFloat(cardPrice.textContent);
-            console.log(price);
-            if((min.value && price < min.value) || (max.value && price > max.value)) {
-                elem.parentNode.style.display = 'none';
-            } else {
-                elem.parentNode.style.display = '';
-            }
-        }) 
     }
-
-    min.addEventListener('change', filterPrice);
-    max.addEventListener('change', filterPrice);
 
     searchBtn.addEventListener('click', () => {
         const searchText = new RegExp(search.value.trim(), 'i');
@@ -137,7 +130,99 @@ function actionOnPage() {
 
 //
 
-toggleCheckbox();
-toggleCart();
-addCart();
-actionOnPage();
+// get data from server
+
+function getData() {
+    const goodsWrapper = document.querySelector('.goods'); 
+    return fetch('../db/db.json')
+        .then((response) => {
+            if(response.ok) {
+                return response.json();
+            } else {
+                throw new Error ('Error from server: ' + response.status);
+            }
+        })
+        .then(data => {
+            return data;
+        })
+        .catch(err => {
+            console.log(err);
+            goodsWrapper.innerHTML = '<div style="color: red; font-size: 30px;">Error</div>';
+        });
+}
+
+//
+
+// rendering cards
+
+function renderCards(data) {
+    const goodsWrapper = document.querySelector('.goods');
+    data.goods.forEach((good) => {
+        const card = document.createElement('div');
+        card.className = 'col-12 col-md-6 col-lg-4 col-xl-3'
+        card.innerHTML = `
+                 <div class="card" data-category="${good.category}">
+                    ${good.sale ? '<div class="card-sale">🔥Hot Sale🔥</div>' : ''}
+                    <div class="card-img-wrapper">
+                        <span class="card-img-top"
+                            style="background-image: url('${good.img}')"></span>
+                    </div>
+                    <div class="card-body justify-content-between">
+                        <div class="card-price" style="${good.sale ? 'color:red' : ''}">${good.price} $</div>
+                        <h5 class="card-title">${good.title}</h5>
+                        <button class="btn btn-primary">В корзину</button>
+                    </div>
+                </div>
+        `;
+        goodsWrapper.appendChild(card);
+    })
+}
+
+//
+
+function renderCatalog() {
+    const cards = document.querySelectorAll('.goods .card');
+    const catalogList = document.querySelector('.catalog-list');
+    const catalogBtn = document.querySelector('.catalog-button');
+    const catalogWrapper = document.querySelector('.catalog');
+    const category = new Set();
+
+    cards.forEach((card) => {
+        category.add(card.dataset.category);
+    });
+
+    category.forEach((item) => {
+        const li = document.createElement('li');
+        li.textContent = item;
+        catalogList.appendChild(li);
+    });
+
+    catalogBtn.addEventListener('click', (event) => {
+        if (catalogWrapper.style.display) {
+            catalogWrapper.style.display = '';
+        } else {
+            catalogWrapper.style.display = 'block';
+        }
+
+        if(event.target.tagName === 'LI') {
+            cards.forEach((card) => {
+                if(card.dataset.category === event.target.textContent) {
+                    card.style.display = '';
+                } else {
+                    card.style.display = 'none';
+                }
+            })
+        }
+    });
+
+    
+}
+
+getData().then((data) => {
+    renderCards(data);
+    toggleCheckbox();
+    toggleCart();
+    addCart();
+    actionOnPage();
+    renderCatalog();
+});
